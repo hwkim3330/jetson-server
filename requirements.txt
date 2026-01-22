@@ -1,0 +1,11 @@
+torch>=2.0.0
+numpy
+opencv-python-headless
+roslibpy
+fastapi
+uvicorn[standard]
+python-multipart
+transformers
+accelerate
+scipy
+einops
