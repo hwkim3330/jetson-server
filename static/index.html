@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Alpamayo Autopilot</title>
+    <title>Alpamayo FSD</title>
     <style>
         :root {
-            --primary: #3e8eff;
-            --primary-glow: rgba(62, 142, 255, 0.3);
-            --success: #17c964;
-            --danger: #f31260;
-            --warning: #f5a524;
+            --cyan: #00d4ff;
+            --cyan-dim: rgba(0, 212, 255, 0.5);
+            --cyan-glow: rgba(0, 212, 255, 0.3);
+            --green: #00ff88;
+            --red: #ff3366;
+            --orange: #ff9500;
             --bg: #000;
-            --surface: #0a0a0a;
-            --surface-2: #141414;
-            --text: #ecedee;
-            --text-dim: #71717a;
+            --text: #fff;
+            --text-dim: rgba(255,255,255,0.6);
         }
 
         * {
@@ -29,365 +28,278 @@
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, 'Helvetica Neue', sans-serif;
             height: 100vh;
             overflow: hidden;
         }
 
-        .app {
+        .container {
             height: 100%;
-            display: grid;
-            grid-template-rows: auto 1fr auto;
+            position: relative;
         }
 
-        /* Header */
-        .header {
-            background: linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.9) 100%);
-            padding: 12px 20px;
+        /* Full Screen Video */
+        .video-container {
+            position: absolute;
+            inset: 0;
+            background: #0a0a0a;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* HUD Overlay */
+        .hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .hud > * {
+            pointer-events: auto;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+        }
+
+        .status-left {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #222;
-            backdrop-filter: blur(20px);
+            gap: 20px;
         }
 
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--primary) 0%, #0055ff 100%);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .logo-text {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
-            letter-spacing: -0.5px;
+            letter-spacing: 2px;
+            color: var(--cyan);
+            text-shadow: 0 0 20px var(--cyan-glow);
         }
 
-        .logo-sub {
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-top: 2px;
+        .mode-badge {
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s;
         }
 
-        .header-status {
+        .mode-badge.autopilot {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: var(--cyan);
+            color: var(--cyan);
+            box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-glow);
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-glow); }
+            50% { box-shadow: 0 0 30px var(--cyan-glow), inset 0 0 30px var(--cyan-glow); }
+        }
+
+        .status-right {
             display: flex;
             align-items: center;
             gap: 16px;
+            font-size: 13px;
         }
 
         .status-item {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 12px;
-            color: var(--text-dim);
+            opacity: 0.7;
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: var(--success);
-            box-shadow: 0 0 8px var(--success);
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
         }
 
-        .status-dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .status-dot.warn { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+        .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
 
-        /* Main View */
-        .main-view {
-            display: grid;
-            grid-template-columns: 1fr 280px;
-            gap: 0;
-            overflow: hidden;
-        }
-
-        /* Video Section */
-        .video-section {
-            position: relative;
-            background: #080808;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .video-section img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .video-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-
-        /* Speed Display - Tesla style */
+        /* Speed Display - Left */
         .speed-display {
             position: absolute;
-            left: 24px;
-            bottom: 24px;
-            text-align: left;
+            left: 32px;
+            bottom: 100px;
         }
 
         .speed-value {
-            font-size: 72px;
-            font-weight: 300;
+            font-size: 96px;
+            font-weight: 200;
             line-height: 1;
-            letter-spacing: -4px;
+            letter-spacing: -6px;
+            text-shadow: 0 0 40px rgba(255,255,255,0.3);
         }
 
         .speed-unit {
-            font-size: 16px;
-            color: var(--text-dim);
-            margin-left: 8px;
-        }
-
-        .speed-limit {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 48px;
-            height: 48px;
-            border: 3px solid #ff4444;
-            border-radius: 50%;
             font-size: 18px;
-            font-weight: 700;
-            margin-left: 16px;
-            background: rgba(0,0,0,0.5);
+            font-weight: 400;
+            opacity: 0.5;
+            margin-left: 8px;
+            letter-spacing: 2px;
         }
 
-        /* AI Status Badge */
-        .ai-badge {
+        .speed-meta {
+            margin-top: 8px;
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        /* Right Info Panel */
+        .info-panel {
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 8px 24px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            background: rgba(50,50,50,0.8);
-            border: 1px solid #444;
-            backdrop-filter: blur(10px);
+            right: 24px;
+            top: 80px;
+            width: 200px;
         }
 
-        .ai-badge.active {
-            background: linear-gradient(135deg, rgba(62,142,255,0.2) 0%, rgba(0,85,255,0.2) 100%);
-            border-color: var(--primary);
-            color: var(--primary);
-            box-shadow: 0 0 30px var(--primary-glow);
-        }
-
-        .ai-badge .dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text-dim);
-            margin-right: 8px;
-        }
-
-        .ai-badge.active .dot {
-            background: var(--primary);
-            box-shadow: 0 0 10px var(--primary);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Side Panel */
-        .side-panel {
-            background: var(--surface);
-            border-left: 1px solid #222;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-section {
+        .info-card {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
             padding: 16px;
-            border-bottom: 1px solid #222;
-        }
-
-        .panel-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
             margin-bottom: 12px;
         }
 
-        /* Mini Map */
-        .mini-map {
-            aspect-ratio: 1;
-            background: #0d0d0d;
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mini-map canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        .mini-map-label {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
+        .info-card-title {
             font-size: 10px;
-            color: var(--text-dim);
-            background: rgba(0,0,0,0.7);
-            padding: 4px 8px;
-            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            opacity: 0.5;
+            text-transform: uppercase;
+            margin-bottom: 8px;
         }
 
-        /* LiDAR View */
-        .lidar-view {
-            aspect-ratio: 1;
-            background: radial-gradient(circle, #0a1520 0%, #050a0f 100%);
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
+        .info-card-value {
+            font-size: 24px;
+            font-weight: 300;
         }
 
-        .lidar-view canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        .lidar-grid {
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(circle, transparent 30%, rgba(62,142,255,0.03) 30%, rgba(62,142,255,0.03) 31%, transparent 31%),
-                radial-gradient(circle, transparent 60%, rgba(62,142,255,0.02) 60%, rgba(62,142,255,0.02) 61%, transparent 61%);
-            background-size: 100% 100%;
-            pointer-events: none;
-        }
-
-        .lidar-car {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 30px;
-            background: var(--primary);
-            border-radius: 4px 4px 2px 2px;
-            box-shadow: 0 0 20px var(--primary-glow);
-        }
+        .info-card-value.cyan { color: var(--cyan); }
 
         /* AI Reasoning */
-        .ai-reasoning {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
+        .reasoning-card {
+            max-height: 120px;
+            overflow: hidden;
         }
 
         .reasoning-text {
-            font-size: 13px;
-            line-height: 1.6;
-            color: var(--text-dim);
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.7;
         }
 
-        .reasoning-text strong {
-            color: var(--primary);
+        /* 3D Road Canvas */
+        .road-canvas {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            pointer-events: none;
         }
 
-        /* Control Bar */
+        /* Bottom Control Bar */
         .control-bar {
-            background: linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
-            padding: 16px 24px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-top: 1px solid #222;
+            background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
         }
 
-        .control-group {
+        .control-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .btn {
-            padding: 14px 28px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 12px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .btn:active { transform: scale(0.96); }
+        .btn:active { transform: scale(0.95); }
 
         .btn-autopilot {
-            background: var(--surface-2);
-            color: var(--text-dim);
-            border: 2px solid #333;
-            min-width: 180px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.2);
+            min-width: 160px;
             justify-content: center;
         }
 
         .btn-autopilot:hover {
-            border-color: #444;
-            background: #1a1a1a;
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.3);
         }
 
         .btn-autopilot.active {
-            background: linear-gradient(135deg, var(--primary) 0%, #0055ff 100%);
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 4px 20px var(--primary-glow);
+            background: var(--cyan);
+            color: #000;
+            border-color: var(--cyan);
+            box-shadow: 0 0 30px var(--cyan-glow);
         }
 
         .btn-stop {
-            background: var(--danger);
+            background: var(--red);
             color: white;
-            padding: 14px 24px;
+            border: none;
         }
 
-        .btn-stop:hover {
-            background: #ff2070;
-        }
+        .btn-stop:hover { background: #ff4477; }
 
         /* D-Pad */
         .dpad {
             display: grid;
-            grid-template-columns: repeat(3, 44px);
-            grid-template-rows: repeat(2, 44px);
+            grid-template-columns: repeat(3, 48px);
+            grid-template-rows: repeat(2, 48px);
             gap: 4px;
         }
 
         .dpad-btn {
-            background: var(--surface-2);
-            border: 1px solid #333;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
             border-radius: 8px;
-            color: var(--text-dim);
-            font-size: 16px;
+            color: rgba(255,255,255,0.6);
+            font-size: 18px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -396,10 +308,10 @@
         }
 
         .dpad-btn:active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-            transform: scale(0.9);
+            background: var(--cyan);
+            border-color: var(--cyan);
+            color: #000;
+            box-shadow: 0 0 20px var(--cyan-glow);
         }
 
         .dpad-btn.up { grid-column: 2; }
@@ -407,16 +319,43 @@
         .dpad-btn.down { grid-column: 2; grid-row: 2; }
         .dpad-btn.right { grid-column: 3; grid-row: 2; }
 
-        .stats {
-            font-size: 12px;
-            color: var(--text-dim);
-            text-align: right;
+        /* Steering Indicator */
+        .steering-indicator {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
         }
 
-        .stats-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text);
+        .steering-track {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .steering-thumb {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: var(--cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--cyan);
+            transition: left 0.1s;
+        }
+
+        .steering-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 12px;
+            background: rgba(255,255,255,0.3);
         }
 
         /* Loading */
@@ -428,174 +367,159 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
-            z-index: 100;
+            gap: 24px;
+            z-index: 1000;
+            transition: opacity 0.5s;
         }
 
-        .loading.hidden { display: none; }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 3px solid #222;
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-logo {
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            color: var(--cyan);
+        }
+
+        .loading-bar {
+            width: 200px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            display: block;
+            width: 50%;
+            height: 100%;
+            background: var(--cyan);
+            animation: loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(300%); }
+        }
 
         /* Responsive */
-        @media (max-width: 900px) {
-            .main-view {
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
-            }
-            .side-panel {
-                flex-direction: row;
-                border-left: none;
-                border-top: 1px solid #222;
-                max-height: 120px;
-            }
-            .panel-section {
-                flex: 1;
-                border-bottom: none;
-                border-right: 1px solid #222;
-            }
-            .mini-map, .lidar-view {
-                height: 80px;
-                aspect-ratio: auto;
-            }
-            .ai-reasoning { display: none; }
-        }
-
-        @media (max-width: 600px) {
-            .header { padding: 8px 12px; }
-            .logo-text { font-size: 14px; }
-            .control-bar { padding: 12px; flex-wrap: wrap; gap: 12px; }
-            .btn { padding: 12px 16px; font-size: 13px; }
-            .speed-value { font-size: 48px; }
-            .dpad-btn { width: 40px; height: 40px; }
+        @media (max-width: 768px) {
+            .speed-value { font-size: 64px; }
+            .info-panel { display: none; }
+            .control-bar { padding: 16px; }
+            .steering-indicator { width: 200px; }
         }
     </style>
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <div class="logo">
-                <div class="logo-icon">A1</div>
-                <div>
-                    <div class="logo-text">Alpamayo</div>
-                    <div class="logo-sub">Autonomous Driving</div>
-                </div>
-            </div>
-            <div class="header-status">
-                <div class="status-item">
-                    <span class="status-dot" id="rosStatus"></span>
-                    <span>ROS</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-dot" id="modelStatus"></span>
-                    <span>Model</span>
-                </div>
-                <div class="status-item" id="fpsDisplay">
-                    <span style="color: var(--success)">0.0</span> FPS
-                </div>
-            </div>
-        </header>
+    <div class="container">
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-logo">ALPAMAYO</div>
+            <div class="loading-bar"></div>
+        </div>
 
-        <main class="main-view">
-            <div class="video-section">
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <span style="color: var(--text-dim)">Initializing...</span>
-                </div>
-                <img id="video" src="/video" alt="Camera" style="display: none;" onload="onVideoLoad()">
+        <!-- Video -->
+        <div class="video-container">
+            <img id="video" src="/video" alt="Camera" onload="onVideoLoad()">
+        </div>
 
-                <div class="ai-badge" id="aiBadge">
-                    <span class="dot"></span>
-                    <span id="aiStatus">MANUAL</span>
-                </div>
+        <!-- 3D Road Canvas -->
+        <canvas class="road-canvas" id="roadCanvas"></canvas>
 
-                <div class="speed-display">
-                    <span class="speed-value" id="speedValue">0</span>
-                    <span class="speed-unit">km/h</span>
+        <!-- HUD -->
+        <div class="hud">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="status-left">
+                    <div class="logo">ALPAMAYO</div>
+                    <div class="mode-badge" id="modeBadge">MANUAL</div>
                 </div>
-            </div>
-
-            <aside class="side-panel">
-                <div class="panel-section">
-                    <div class="panel-title">LiDAR</div>
-                    <div class="lidar-view">
-                        <div class="lidar-grid"></div>
-                        <canvas id="lidarCanvas"></canvas>
-                        <div class="lidar-car"></div>
+                <div class="status-right">
+                    <div class="status-item">
+                        <span class="status-dot" id="rosStatus"></span>
+                        <span>ROS</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-dot" id="modelStatus"></span>
+                        <span>AI</span>
+                    </div>
+                    <div class="status-item" id="fpsDisplay">
+                        <span style="color: var(--cyan)">0.0</span>&nbsp;FPS
                     </div>
                 </div>
+            </div>
 
-                <div class="panel-section">
-                    <div class="panel-title">Map</div>
-                    <div class="mini-map">
-                        <canvas id="mapCanvas"></canvas>
-                        <div class="mini-map-label">Local Map</div>
-                    </div>
+            <!-- Speed Display -->
+            <div class="speed-display">
+                <span class="speed-value" id="speedValue">0</span>
+                <span class="speed-unit">KM/H</span>
+                <div class="speed-meta" id="latencyDisplay">Latency: --ms</div>
+            </div>
+
+            <!-- Right Info Panel -->
+            <div class="info-panel">
+                <div class="info-card">
+                    <div class="info-card-title">Inference</div>
+                    <div class="info-card-value cyan" id="inferenceTime">--</div>
+                </div>
+                <div class="info-card reasoning-card">
+                    <div class="info-card-title">AI Reasoning</div>
+                    <div class="reasoning-text" id="reasoningText">Waiting...</div>
+                </div>
+            </div>
+
+            <!-- Steering Indicator -->
+            <div class="steering-indicator">
+                <div class="steering-track">
+                    <div class="steering-center"></div>
+                    <div class="steering-thumb" id="steeringThumb"></div>
+                </div>
+            </div>
+
+            <!-- Bottom Control Bar -->
+            <div class="control-bar">
+                <div class="control-left">
+                    <button class="btn btn-autopilot" id="autopilotBtn" onclick="toggleAutopilot()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+                        </svg>
+                        Autopilot
+                    </button>
+                    <button class="btn btn-stop" onclick="emergencyStop()">STOP</button>
                 </div>
 
-                <div class="ai-reasoning">
-                    <div class="panel-title">AI Reasoning</div>
-                    <div class="reasoning-text" id="reasoningText">
-                        Waiting for inference...
-                    </div>
+                <div class="dpad">
+                    <button class="dpad-btn up" onmousedown="startMove('f')" onmouseup="stopMove()" ontouchstart="startMove('f')" ontouchend="stopMove()">▲</button>
+                    <button class="dpad-btn left" onmousedown="startMove('l')" onmouseup="stopMove()" ontouchstart="startMove('l')" ontouchend="stopMove()">◀</button>
+                    <button class="dpad-btn down" onmousedown="startMove('b')" onmouseup="stopMove()" ontouchstart="startMove('b')" ontouchend="stopMove()">▼</button>
+                    <button class="dpad-btn right" onmousedown="startMove('r')" onmouseup="stopMove()" ontouchstart="startMove('r')" ontouchend="stopMove()">▶</button>
                 </div>
-            </aside>
-        </main>
-
-        <footer class="control-bar">
-            <div class="control-group">
-                <button class="btn btn-autopilot" id="autopilotBtn" onclick="toggleAutopilot()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-                    </svg>
-                    Autopilot
-                </button>
-                <button class="btn btn-stop" onclick="emergencyStop()">
-                    STOP
-                </button>
             </div>
-
-            <div class="dpad">
-                <button class="dpad-btn up" onmousedown="startMove('f')" onmouseup="stopMove()" ontouchstart="startMove('f')" ontouchend="stopMove()">▲</button>
-                <button class="dpad-btn left" onmousedown="startMove('l')" onmouseup="stopMove()" ontouchstart="startMove('l')" ontouchend="stopMove()">◀</button>
-                <button class="dpad-btn down" onmousedown="startMove('b')" onmouseup="stopMove()" ontouchstart="startMove('b')" ontouchend="stopMove()">▼</button>
-                <button class="dpad-btn right" onmousedown="startMove('r')" onmouseup="stopMove()" ontouchstart="startMove('r')" ontouchend="stopMove()">▶</button>
-            </div>
-
-            <div class="stats">
-                <div class="stats-value" id="latencyValue">--</div>
-                <div>Latency (ms)</div>
-            </div>
-        </footer>
+        </div>
     </div>
 
     <script>
         let autopilot = false;
         let moveInt = null;
-        let ws = null;
+        let steering = 0;
 
         function onVideoLoad() {
             document.getElementById('loading').classList.add('hidden');
-            document.getElementById('video').style.display = 'block';
-            document.getElementById('modelStatus').classList.remove('offline');
         }
 
         function toggleAutopilot() {
             fetch('/api/autopilot/toggle').then(r => r.json()).then(d => {
                 autopilot = d.enabled;
                 const btn = document.getElementById('autopilotBtn');
-                const badge = document.getElementById('aiBadge');
+                const badge = document.getElementById('modeBadge');
                 btn.classList.toggle('active', autopilot);
-                badge.classList.toggle('active', autopilot);
-                document.getElementById('aiStatus').textContent = autopilot ? 'AUTOPILOT' : 'MANUAL';
+                badge.classList.toggle('autopilot', autopilot);
+                badge.textContent = autopilot ? 'AUTOPILOT' : 'MANUAL';
             });
         }
 
@@ -621,6 +545,12 @@
             fetch(`/api/move?linear=${v[0]}&angular=${v[1]}`);
         }
 
+        function updateSteering(angular) {
+            const thumb = document.getElementById('steeringThumb');
+            const offset = Math.max(-100, Math.min(100, angular * 80));
+            thumb.style.left = `calc(50% + ${offset}px)`;
+        }
+
         // Keyboard
         document.addEventListener('keydown', e => {
             if (autopilot) return;
@@ -628,6 +558,7 @@
             if (m) startMove(m);
             if (e.key === ' ') { emergencyStop(); e.preventDefault(); }
         });
+
         document.addEventListener('keyup', e => {
             if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) stopMove();
         });
@@ -635,32 +566,77 @@
         // Status polling
         setInterval(() => {
             fetch('/api/autopilot/status').then(r => r.json()).then(d => {
-                document.getElementById('fpsDisplay').innerHTML = `<span style="color:var(--success)">${d.fps.toFixed(1)}</span> FPS`;
-                document.getElementById('latencyValue').textContent = Math.round(1000/d.fps);
-                document.getElementById('speedValue').textContent = Math.round(Math.abs(d.linear||0) * 36);
+                document.getElementById('fpsDisplay').innerHTML =
+                    `<span style="color:var(--cyan)">${d.fps.toFixed(1)}</span>&nbsp;FPS`;
+                document.getElementById('latencyDisplay').textContent =
+                    `Latency: ${Math.round(1000/d.fps)}ms`;
+                document.getElementById('speedValue').textContent =
+                    Math.round(Math.abs(d.linear||0) * 36);
+                document.getElementById('inferenceTime').textContent =
+                    `${(1000/d.fps).toFixed(0)}ms`;
+
+                updateSteering(d.angular || 0);
+
                 if (d.coc) {
-                    document.getElementById('reasoningText').innerHTML = `<strong>Decision:</strong> ${d.coc}`;
+                    const text = d.coc.length > 100 ? d.coc.slice(0,100) + '...' : d.coc;
+                    document.getElementById('reasoningText').textContent = text;
                 }
             }).catch(() => {});
-        }, 1000);
+        }, 500);
 
-        // LiDAR canvas placeholder
-        const lidarCtx = document.getElementById('lidarCanvas').getContext('2d');
-        function drawLidar() {
-            const c = document.getElementById('lidarCanvas');
-            c.width = c.offsetWidth;
-            c.height = c.offsetHeight;
-            lidarCtx.fillStyle = '#0a84ff22';
-            for (let i = 0; i < 50; i++) {
-                const a = Math.random() * Math.PI * 2;
-                const r = Math.random() * c.width * 0.4;
-                lidarCtx.beginPath();
-                lidarCtx.arc(c.width/2 + Math.cos(a)*r, c.height/2 + Math.sin(a)*r, 2, 0, Math.PI*2);
-                lidarCtx.fill();
-            }
+        // 3D Road rendering
+        const canvas = document.getElementById('roadCanvas');
+        const ctx = canvas.getContext('2d');
+        let trajectory = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight * 0.5;
         }
-        setInterval(drawLidar, 500);
-        drawLidar();
+
+        function drawRoad() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const horizon = 0;
+            const roadWidth = w * 0.6;
+
+            // Draw trajectory path (if available from video overlay)
+            // The actual trajectory is rendered in the video stream
+            // This is just for additional effects
+
+            // Road edge glow lines
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+            ctx.lineWidth = 2;
+
+            // Left edge
+            ctx.beginPath();
+            ctx.moveTo(w/2 - roadWidth/2, h);
+            ctx.lineTo(w/2 - 20, horizon);
+            ctx.stroke();
+
+            // Right edge
+            ctx.beginPath();
+            ctx.moveTo(w/2 + roadWidth/2, h);
+            ctx.lineTo(w/2 + 20, horizon);
+            ctx.stroke();
+
+            // Center dashed line
+            ctx.setLineDash([20, 30]);
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(w/2, h);
+            ctx.lineTo(w/2, horizon);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            requestAnimationFrame(drawRoad);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        drawRoad();
 
         document.addEventListener('contextmenu', e => e.preventDefault());
     </script>

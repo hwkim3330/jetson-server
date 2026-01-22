@@ -1,8 +1,16 @@
-"""Tesla FSD-style visualization."""
+"""Tesla FSD-style visualization with cyan color scheme."""
 
 from typing import List, Tuple, Optional
 import numpy as np
 import cv2
+
+
+# Tesla-style cyan colors (BGR format)
+CYAN = (255, 212, 0)        # #00d4ff
+CYAN_DIM = (255, 212, 0)    # dimmer
+CYAN_GLOW = (200, 180, 0)   # glow
+WHITE = (255, 255, 255)
+WHITE_DIM = (180, 180, 180)
 
 
 def project_trajectory(
@@ -36,10 +44,10 @@ def project_trajectory(
 def draw_trajectory(
     img: np.ndarray,
     traj_3d: Optional[np.ndarray],
-    path_color: Tuple[int, int, int] = (180, 230, 50),
+    path_color: Tuple[int, int, int] = CYAN,
     path_width: int = 100
 ) -> np.ndarray:
-    """Draw Tesla FSD-style trajectory path."""
+    """Draw Tesla FSD-style trajectory path with cyan glow."""
     if traj_3d is None:
         return img
 
@@ -62,41 +70,41 @@ def draw_trajectory(
     if len(left_pts) < 2:
         return img
 
-    # Fill path
+    # Fill path with semi-transparent cyan
     polygon = np.array(left_pts + right_pts[::-1], dtype=np.int32)
     overlay = img.copy()
-    cv2.fillPoly(overlay, [polygon], path_color)
-    cv2.addWeighted(overlay, 0.4, img, 0.6, 0, img)
+    cv2.fillPoly(overlay, [polygon], (100, 60, 0))  # Dark cyan fill
+    cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
 
-    # Glow effect
-    edge_color = (200, 255, 100)
-    for offset in [15, 10, 5]:
+    # Glow effect layers
+    for offset, alpha in [(20, 0.05), (12, 0.08), (6, 0.1)]:
         glow_left = [(p[0] - offset, p[1]) for p in left_pts]
         glow_right = [(p[0] + offset, p[1]) for p in right_pts]
         glow_poly = np.array(glow_left + glow_right[::-1], dtype=np.int32)
         glow_overlay = img.copy()
-        cv2.fillPoly(glow_overlay, [glow_poly], edge_color)
-        cv2.addWeighted(glow_overlay, 0.08, img, 0.92, 0, img)
+        cv2.fillPoly(glow_overlay, [glow_poly], CYAN_GLOW)
+        cv2.addWeighted(glow_overlay, alpha, img, 1 - alpha, 0, img)
 
-    # Edge lines
+    # Edge lines with gradient
     for i in range(len(left_pts) - 1):
-        alpha = 1.0 - (i / len(left_pts)) * 0.7
+        alpha = 1.0 - (i / len(left_pts)) * 0.6
         thickness = max(1, int(3 * alpha))
-        color = tuple(int(c * alpha) for c in edge_color)
+        color = tuple(int(c * alpha) for c in CYAN)
         cv2.line(img, left_pts[i], left_pts[i + 1], color, thickness, cv2.LINE_AA)
         cv2.line(img, right_pts[i], right_pts[i + 1], color, thickness, cv2.LINE_AA)
 
-    # Center chevrons
-    for i in range(0, len(points_2d) - 1, 5):
+    # Center chevrons (direction markers)
+    for i in range(0, len(points_2d) - 1, 4):
         pt = points_2d[i]
         alpha = 1.0 - (i / len(points_2d)) * 0.5
-        size = int(12 * alpha)
+        size = int(15 * alpha)
         pts = np.array([
             [pt[0], pt[1] - size],
             [pt[0] - size // 2, pt[1]],
             [pt[0] + size // 2, pt[1]]
         ], dtype=np.int32)
-        cv2.polylines(img, [pts], True, (255, 255, 255), max(1, int(2 * alpha)), cv2.LINE_AA)
+        color = tuple(int(c * alpha) for c in WHITE)
+        cv2.polylines(img, [pts], True, color, max(1, int(2 * alpha)), cv2.LINE_AA)
 
     return img
 
@@ -109,61 +117,86 @@ def draw_hud(
     angular_vel: float,
     ai_enabled: bool
 ) -> np.ndarray:
-    """Draw Tesla-style HUD overlay."""
+    """Draw minimal Tesla-style HUD overlay."""
     h, w = img.shape[:2]
 
-    # Top gradient
-    for i in range(60):
-        alpha = 1.0 - i / 60
-        color = (int(15 * alpha), int(15 * alpha), int(15 * alpha))
+    # Top gradient bar
+    for i in range(80):
+        alpha = 1.0 - i / 80
+        color = (int(10 * alpha), int(10 * alpha), int(10 * alpha))
         cv2.line(img, (0, i), (w, i), color, 1)
 
-    # Logo
-    cv2.putText(img, "ALPAMAYO", (20, 38),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2, cv2.LINE_AA)
+    # Bottom gradient bar
+    for i in range(100):
+        alpha = i / 100
+        color = (int(10 * alpha), int(10 * alpha), int(10 * alpha))
+        cv2.line(img, (0, h - 100 + i), (w, h - 100 + i), color, 1)
 
-    # AI status
+    # Logo (top left)
+    cv2.putText(img, "ALPAMAYO", (24, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, CYAN, 2, cv2.LINE_AA)
+
+    # AI status badge
     if ai_enabled:
-        cv2.circle(img, (w - 30, 30), 12, (50, 255, 50), -1)
-        cv2.circle(img, (w - 30, 30), 12, (100, 255, 100), 2)
-        cv2.putText(img, "AI", (w - 38, 35),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 50, 0), 1, cv2.LINE_AA)
-        cv2.putText(img, "AUTOPILOT", (w - 140, 35),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (50, 255, 50), 2, cv2.LINE_AA)
+        # Glowing AUTOPILOT badge
+        badge_x = 180
+        badge_y = 28
+        badge_w = 110
+        badge_h = 28
+
+        # Glow
+        cv2.rectangle(img, (badge_x - 2, badge_y - 2),
+                      (badge_x + badge_w + 2, badge_y + badge_h + 2),
+                      (150, 100, 0), -1)
+        cv2.rectangle(img, (badge_x, badge_y),
+                      (badge_x + badge_w, badge_y + badge_h),
+                      (50, 30, 0), -1)
+        cv2.rectangle(img, (badge_x, badge_y),
+                      (badge_x + badge_w, badge_y + badge_h),
+                      CYAN, 1)
+        cv2.putText(img, "AUTOPILOT", (badge_x + 8, badge_y + 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, CYAN, 1, cv2.LINE_AA)
     else:
-        cv2.circle(img, (w - 30, 30), 12, (80, 80, 80), -1)
-        cv2.putText(img, "MANUAL", (w - 120, 35),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 1, cv2.LINE_AA)
+        cv2.putText(img, "MANUAL", (180, 42),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, WHITE_DIM, 1, cv2.LINE_AA)
 
-    # Speed display
-    speed_kmh = abs(linear_vel) * 36  # scaled
-    cv2.putText(img, f"{int(speed_kmh)}", (30, h - 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 2.0, (255, 255, 255), 3, cv2.LINE_AA)
-    cv2.putText(img, "km/h", (130, h - 45),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (150, 150, 150), 1, cv2.LINE_AA)
+    # FPS (top right)
+    fps_text = f"{fps:.1f} FPS"
+    cv2.putText(img, fps_text, (w - 100, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, CYAN, 1, cv2.LINE_AA)
 
-    # FPS
-    cv2.putText(img, f"{fps:.1f} FPS", (w - 100, h - 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 1, cv2.LINE_AA)
+    # Speed display (bottom left)
+    speed_kmh = abs(linear_vel) * 36
+    cv2.putText(img, f"{int(speed_kmh)}", (32, h - 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 2.5, WHITE, 3, cv2.LINE_AA)
+    cv2.putText(img, "KM/H", (140, h - 45),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, WHITE_DIM, 1, cv2.LINE_AA)
 
-    # CoC text bar
-    if coc_text:
-        for i in range(70):
-            alpha = i / 70
-            color = (int(20 * alpha), int(20 * alpha), int(20 * alpha))
-            cv2.line(img, (0, h - 70 + i), (w, h - 70 + i), color, 1)
+    # Steering indicator (bottom center)
+    steer_cx = w // 2
+    steer_y = h - 25
+    steer_width = 200
 
-        cv2.putText(img, "AI:", (200, h - 25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50, 200, 255), 1, cv2.LINE_AA)
-        cv2.putText(img, coc_text[:70], (235, h - 25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
+    # Track
+    cv2.line(img, (steer_cx - steer_width // 2, steer_y),
+             (steer_cx + steer_width // 2, steer_y),
+             (50, 50, 50), 3, cv2.LINE_AA)
 
-    # Steering indicator
-    steer_x = w // 2
-    steer_y = h - 15
-    steer_offset = int(angular_vel * 50)
-    cv2.line(img, (steer_x - 150, steer_y), (steer_x + 150, steer_y), (60, 60, 60), 4, cv2.LINE_AA)
-    cv2.circle(img, (steer_x + steer_offset, steer_y), 8, (50, 255, 50), -1)
+    # Center mark
+    cv2.line(img, (steer_cx, steer_y - 8), (steer_cx, steer_y + 8),
+             (80, 80, 80), 2, cv2.LINE_AA)
+
+    # Thumb
+    thumb_offset = int(angular_vel * 60)
+    thumb_x = steer_cx + thumb_offset
+    cv2.circle(img, (thumb_x, steer_y), 10, CYAN, -1, cv2.LINE_AA)
+    cv2.circle(img, (thumb_x, steer_y), 12, (150, 100, 0), 2, cv2.LINE_AA)
+
+    # AI reasoning text (bottom right area)
+    if coc_text and ai_enabled:
+        text = coc_text[:60] + "..." if len(coc_text) > 60 else coc_text
+        cv2.putText(img, text, (w - 450, h - 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, WHITE_DIM, 1, cv2.LINE_AA)
 
     return img
 
@@ -177,7 +210,7 @@ def render_frame(
     angular_vel: float,
     ai_enabled: bool
 ) -> np.ndarray:
-    """Render complete visualization frame."""
+    """Render complete Tesla FSD-style visualization frame."""
     viz = frame.copy()
     viz = draw_trajectory(viz, trajectory)
     viz = draw_hud(viz, fps, coc_text, linear_vel, angular_vel, ai_enabled)
