@@ -88,7 +88,9 @@ async def autopilot_status():
     return {
         "enabled": state.ai_enabled,
         "fps": state.fps,
-        "coc": state.coc_text
+        "coc": state.coc_text,
+        "linear": state.linear_vel,
+        "angular": state.angular_vel
     }
 
 

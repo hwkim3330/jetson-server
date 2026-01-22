@@ -102,11 +102,44 @@ jetson-server/
 | `/api/stop` | GET | Emergency stop |
 | `/api/move` | GET | Manual control (`?linear=0.3&angular=0.5`) |
 
-## Performance
+## Performance Benchmark
 
-- Inference: ~1.0-1.5 FPS on RTX 3090
-- Video stream: 30 FPS
-- Latency: ~1.5s (model inference time)
+Tested on RTX 3090 (24GB VRAM), Ubuntu 22.04, CUDA 12.8, PyTorch 2.10.0
+
+### Inference Time (Alpamayo R1 10B)
+
+| Configuration | Time | FPS | Notes |
+|---------------|------|-----|-------|
+| 1 cam, 1 frame | 1.09s | 0.9 | Minimal input |
+| 1 cam, 4 frames | 0.75s | 1.3 | Recommended |
+| 4 cam, 4 frames | 2.20s | 0.5 | Full sensor suite |
+| Web server (real-time) | 1.4-1.6s | 0.6-0.7 | With visualization overhead |
+
+### Bottleneck Analysis
+
+| Component | Time | % of Total |
+|-----------|------|------------|
+| VLM Text Generation | ~1.3s | 85-90% |
+| FlowMatching Diffusion | ~0.15s | 10-15% |
+| Preprocessing | ~0.05s | <5% |
+
+### Official NVIDIA Specs
+
+- Target latency: **99ms** (on DRIVE Orin/Thor)
+- DRIVE Orin: 254 TOPS @ 65W
+- DRIVE Thor: 1000+ TOPS @ 100W
+
+### Optimization Notes
+
+Current RTX 3090 performance is ~10x slower than target due to:
+1. VLM autoregressive generation bottleneck
+2. No TensorRT optimization for VLM
+3. BF16 inference (not INT8/FP8 quantized)
+
+For real-time autonomous driving, requires:
+- TensorRT-LLM optimization
+- INT8/FP8 quantization
+- NVIDIA DRIVE platform
 
 ## License
 
